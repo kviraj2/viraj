@@ -1,4 +1,5 @@
 import urllib.request
+from urllib.error import URLError
 from .config import NTFY_TOPIC
 
 
@@ -11,5 +12,9 @@ def send_notification(message: str, title: str = "bestie") -> bool:
         data=message.encode(),
         headers={"Title": title},
     )
-    urllib.request.urlopen(req, timeout=10)
-    return True
+    try:
+        urllib.request.urlopen(req, timeout=10)
+        return True
+    except URLError as e:
+        print(f"[Notify failed]: {e}")
+        return False

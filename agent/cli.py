@@ -6,7 +6,7 @@ from rich.table import Table
 
 from .ai import generate_morning_brief
 from .db import init_db
-from .messages import get_unreplied, send_imessage
+from .messages import get_unreplied, send_imessage, _from_apple_ns
 from .notify import send_notification
 from .ollama_ai import classify_spam, draft_reply
 from .outlook import auth as outlook_auth, get_upcoming_events
@@ -185,10 +185,7 @@ def inbox_list(hours):
     table.add_column("Message")
     table.add_column("When", width=20)
     for m in msgs:
-        from datetime import datetime
-        when = datetime.fromtimestamp(
-            (m["date"] / 1e9) + (datetime(2001, 1, 1) - datetime(1970, 1, 1)).total_seconds()
-        ).strftime("%Y-%m-%d %H:%M")
+        when = _from_apple_ns(m["date"]).strftime("%Y-%m-%d %H:%M")
         table.add_row(
             m["display_name"] or m["sender"] or "?",
             (m["text"] or "")[:80],

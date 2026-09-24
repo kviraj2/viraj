@@ -1,6 +1,6 @@
 import json
 import urllib.request
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 
 from .config import OLLAMA_MODEL, OLLAMA_URL
 
@@ -23,6 +23,17 @@ def _chat(system: str, user: str) -> str:
         with urllib.request.urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read())
         return data["message"]["content"].strip()
+    except HTTPError as e:
+        body = e.read().decode(errors="replace")
+        try:
+            msg = json.loads(body).get("error", body)
+        except Exception:
+            msg = body
+        if "not found" in msg.lower():
+            raise RuntimeError(
+                f"Ollama model '{OLLAMA_MODEL}' not installed — run: ollama pull {OLLAMA_MODEL}"
+            ) from e
+        raise RuntimeError(f"Ollama error: {msg}") from e
     except URLError as e:
         raise RuntimeError(f"Ollama unreachable at {OLLAMA_URL} — is it running?") from e
 

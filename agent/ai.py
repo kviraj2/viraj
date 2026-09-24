@@ -1,5 +1,6 @@
 from .tasks import list_tasks, get_due_today
 from .reminders import list_reminders
+from .config import MS_CLIENT_ID
 
 
 def generate_morning_brief() -> str:
@@ -24,5 +25,17 @@ def generate_morning_brief() -> str:
         lines.append("\nUpcoming reminders:")
         for r in upcoming[:3]:
             lines.append(f"  - {r['title']} at {r['fire_at']}")
+
+    if MS_CLIENT_ID:
+        try:
+            from .outlook import get_upcoming_events
+            events = get_upcoming_events(days=1)
+            if events:
+                lines.append("\nToday's calendar:")
+                for e in events:
+                    when = e["start"].strftime("%H:%M") if e["start"] else "?"
+                    lines.append(f"  - {when} {e['subject']}")
+        except Exception:
+            pass
 
     return "\n".join(lines)

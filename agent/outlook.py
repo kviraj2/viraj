@@ -70,7 +70,7 @@ def get_upcoming_events(days: int = 7) -> list[dict]:
     for e in data.get("value", []):
         start_str = e["start"]["dateTime"]
         try:
-            start = datetime.fromisoformat(start_str.rstrip("0").rstrip(".") or start_str)
+            start = datetime.fromisoformat(start_str[:19])
         except ValueError:
             start = None
         events.append({

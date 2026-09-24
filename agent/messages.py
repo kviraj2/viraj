@@ -25,7 +25,7 @@ def get_unreplied(since_hours: int = 48) -> list[dict]:
         )
 
     cutoff_ns = (
-        datetime.utcnow() - APPLE_EPOCH - timedelta(hours=since_hours)
+        datetime.now() - APPLE_EPOCH - timedelta(hours=since_hours)
     ).total_seconds() * 1e9
 
     with _conn() as conn:
