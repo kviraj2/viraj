@@ -21,3 +21,6 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 # Microsoft / Outlook
 MS_CLIENT_ID = os.getenv("MS_CLIENT_ID")
 MS_TENANT_ID = os.getenv("MS_TENANT_ID", "common")
+
+# Telegram bot
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")

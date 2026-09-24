@@ -7,6 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from .ai import generate_morning_brief
+from .telegram_bot import bot_tick
 from .config import MORNING_BRIEF_HOUR, MORNING_BRIEF_MINUTE, TIMEZONE
 from .notify import send_notification
 from .reminders import get_pending_reminders, mark_reminder_sent
@@ -32,6 +33,7 @@ def start_daemon():
         id="morning_brief",
     )
     scheduler.add_job(_check_reminders, "interval", minutes=1, id="check_reminders")
+    scheduler.add_job(bot_tick, "interval", seconds=30, id="bot")
 
     scheduler.start()
     print(

@@ -59,6 +59,21 @@ def get_unreplied(since_hours: int = 48) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_messages_from(phone: str, since_ns: int) -> list[dict]:
+    """Return messages received from `phone` after `since_ns` (Apple epoch ns), oldest first."""
+    if not CHAT_DB.exists():
+        return []
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT m.text, m.date, h.id AS sender
+            FROM message m
+            JOIN handle h ON m.handle_id = h.rowid
+            WHERE h.id = ? AND m.is_from_me = 0 AND m.date > ? AND m.text IS NOT NULL
+            ORDER BY m.date ASC
+        """, (phone, since_ns)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def send_imessage(recipient: str, text: str) -> bool:
     escaped = text.replace("\\", "\\\\").replace('"', '\\"')
     script = f'''
