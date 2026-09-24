@@ -8,18 +8,18 @@ from apscheduler.triggers.cron import CronTrigger
 
 from .ai import generate_morning_brief
 from .config import MORNING_BRIEF_HOUR, MORNING_BRIEF_MINUTE, TIMEZONE
+from .notify import send_notification
 from .reminders import get_pending_reminders, mark_reminder_sent
-from .sms import send_sms
 
 
 def _check_reminders():
     for reminder in get_pending_reminders():
-        send_sms(f"Reminder: {reminder['title']}")
+        send_notification(f"Reminder: {reminder['title']}")
         mark_reminder_sent(reminder["id"])
 
 
 def _send_morning_brief():
-    send_sms(generate_morning_brief())
+    send_notification(generate_morning_brief())
 
 
 def start_daemon():

@@ -6,9 +6,9 @@ from rich.table import Table
 
 from .ai import ask_assistant, generate_morning_brief
 from .db import init_db
+from .notify import send_notification
 from .reminders import add_reminder, delete_reminder, list_reminders
 from .scheduler import start_daemon
-from .sms import send_sms
 from .tasks import add_task, complete_task, delete_task, list_tasks
 
 console = Console()
@@ -163,16 +163,16 @@ def brief():
     """Generate and send the morning brief now."""
     msg = generate_morning_brief()
     console.print(msg)
-    sent = send_sms(msg)
+    sent = send_notification(msg)
     if sent:
-        console.print("\n[green]Brief sent via SMS.[/green]")
+        console.print("\n[green]Brief sent via ntfy.[/green]")
 
 
-@cli.command("test-sms")
-def test_sms():
-    """Send a test SMS to verify Twilio is configured."""
-    sent = send_sms("Viraj agent is online and working!")
+@cli.command("test-notify")
+def test_notify():
+    """Send a test notification to verify ntfy is configured."""
+    sent = send_notification("Viraj agent is online and working!")
     if sent:
-        console.print("[green]Test SMS sent![/green]")
+        console.print("[green]Test notification sent![/green]")
     else:
-        console.print("[yellow]SMS not sent — check your .env file.[/yellow]")
+        console.print("[yellow]Not sent — set NTFY_TOPIC in your .env file.[/yellow]")

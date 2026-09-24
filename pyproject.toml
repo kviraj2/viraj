@@ -9,7 +9,6 @@ description = "Personal life management agent"
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=0.30",
-    "twilio>=9.0",
     "apscheduler>=3.10",
     "click>=8.1",
     "rich>=13.0",

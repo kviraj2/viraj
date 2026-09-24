@@ -8,10 +8,8 @@ DATA_DIR = Path.home() / ".viraj"
 DATA_DIR.mkdir(exist_ok=True)
 DB_PATH = DATA_DIR / "viraj.db"
 
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER")
-USER_PHONE = os.getenv("USER_PHONE")
+NTFY_TOPIC = os.getenv("NTFY_TOPIC")
+NTFY_SERVER = os.getenv("NTFY_SERVER", "https://ntfy.sh")
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 

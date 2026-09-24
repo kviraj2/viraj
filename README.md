@@ -1,6 +1,6 @@
 # Viraj — Personal Life Agent
 
-A CLI agent that tracks tasks, fires reminders, and texts you updates via SMS.
+A CLI agent that tracks tasks, fires reminders, and sends you push notifications.
 
 ## Quick start
 
@@ -10,7 +10,7 @@ pip install -e .
 
 # 2. Copy and fill in credentials
 cp .env.example .env
-# edit .env with your Twilio + Anthropic keys
+# edit .env — only NTFY_TOPIC is required
 
 # 3. Run!
 agent task list
@@ -27,14 +27,14 @@ agent task done 1                   # mark task #1 complete
 agent task delete 1
 ```
 
-### Reminders (fires as SMS)
+### Reminders (fires as push notification)
 ```bash
 agent remind add "Dentist appointment" --at "2026-09-25 14:00"
 agent remind list
 agent remind delete 1
 ```
 
-### AI assistant
+### AI assistant (optional — requires Anthropic API key)
 ```bash
 agent ask "What should I focus on today?"
 agent ask "Help me prioritize my week"
@@ -48,19 +48,21 @@ agent start           # blocks; keeps running — use tmux or a systemd service
 ### Manual triggers
 ```bash
 agent brief           # send morning brief right now
-agent test-sms        # verify Twilio is wired up
+agent test-notify     # verify ntfy is wired up
 ```
 
-## Setup: Twilio (SMS)
+## Setup: Notifications via ntfy (free, no account)
 
-1. Sign up free at [twilio.com](https://www.twilio.com) — free trial gives ~$15 credit.
-2. Get a phone number in the Twilio console.
-3. Copy your **Account SID**, **Auth Token**, and phone number into `.env`.
+1. Install the **ntfy** app on your phone — [iOS](https://apps.apple.com/app/ntfy/id1625396347) or [Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy).
+2. Pick any unique topic name, e.g. `viraj-yourname`.
+3. In the app, tap **+** and subscribe to that topic.
+4. Set `NTFY_TOPIC=viraj-yourname` in your `.env`.
 
-## Setup: Anthropic API
+That's it — completely free, no account needed.
 
-1. Go to [console.anthropic.com](https://console.anthropic.com) → API Keys → Create.
-2. Paste the key into `.env` as `ANTHROPIC_API_KEY`.
+## Setup: Anthropic API (optional)
+
+Only needed for `agent ask`. Get a key at [console.anthropic.com](https://console.anthropic.com) and paste it into `.env` as `ANTHROPIC_API_KEY`.
 
 ## Running the daemon persistently
 
@@ -73,4 +75,4 @@ Or create a systemd service to start on boot.
 
 ## Data storage
 
-All data lives in `~/.viraj/viraj.db` (SQLite). Nothing is sent to the cloud except SMS via Twilio and AI queries to Anthropic.
+All data lives in `~/.viraj/viraj.db` (SQLite). The only outbound network calls are push notifications to ntfy.sh and (optionally) AI queries to Anthropic.
