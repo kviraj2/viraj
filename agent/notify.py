@@ -1,17 +1,15 @@
 import urllib.request
+from .config import NTFY_TOPIC
 
-from .config import NTFY_SERVER, NTFY_TOPIC
 
-
-def send_notification(message: str) -> bool:
+def send_notification(message: str, title: str = "bestie") -> bool:
     if not NTFY_TOPIC:
-        print(f"[Notification — NTFY_TOPIC not set in .env]: {message}")
+        print(f"[Notify — NTFY_TOPIC not set]: {message}")
         return False
     req = urllib.request.Request(
-        f"{NTFY_SERVER}/{NTFY_TOPIC}",
+        f"https://ntfy.sh/{NTFY_TOPIC}",
         data=message.encode(),
-        method="POST",
-        headers={"Title": "Viraj Agent"},
+        headers={"Title": title},
     )
-    with urllib.request.urlopen(req) as resp:
-        return resp.status == 200
+    urllib.request.urlopen(req, timeout=10)
+    return True

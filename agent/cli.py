@@ -4,7 +4,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from .ai import ask_assistant, generate_morning_brief
+from .ai import generate_morning_brief
 from .db import init_db
 from .notify import send_notification
 from .reminders import add_reminder, delete_reminder, list_reminders
@@ -18,7 +18,7 @@ PRIORITY_COLORS = {"high": "red", "medium": "yellow", "low": "green"}
 
 @click.group()
 def cli():
-    """Viraj — personal life agent."""
+    """Bestie — personal life agent."""
     init_db()
 
 
@@ -136,16 +136,26 @@ def remind_delete(reminder_id):
     console.print(f"[red]Reminder #{reminder_id} deleted.[/red]")
 
 
-# ── AI ────────────────────────────────────────────────────────────────────────
+# ── Notifications ─────────────────────────────────────────────────────────────
 
 @cli.command()
-@click.argument("question", nargs=-1, required=True)
-def ask(question):
-    """Ask the AI assistant a question."""
-    q = " ".join(question)
-    console.print(f"[dim]{q}[/dim]\n")
-    answer = ask_assistant(q)
-    console.print(f"[bold cyan]Assistant:[/bold cyan] {answer}")
+def brief():
+    """Generate and send the morning brief now."""
+    msg = generate_morning_brief()
+    console.print(msg)
+    sent = send_notification(msg, title="Morning Brief")
+    if sent:
+        console.print("\n[green]Brief sent via ntfy.[/green]")
+
+
+@cli.command("test-notify")
+def test_notify():
+    """Send a test notification to verify ntfy is configured."""
+    sent = send_notification("Bestie is online and working!", title="Test")
+    if sent:
+        console.print("[green]Test notification sent![/green]")
+    else:
+        console.print("[yellow]Not sent — set NTFY_TOPIC in your .env file.[/yellow]")
 
 
 # ── Daemon ────────────────────────────────────────────────────────────────────
@@ -154,25 +164,3 @@ def ask(question):
 def start():
     """Start the background daemon (reminders + morning brief)."""
     start_daemon()
-
-
-# ── Manual triggers ───────────────────────────────────────────────────────────
-
-@cli.command()
-def brief():
-    """Generate and send the morning brief now."""
-    msg = generate_morning_brief()
-    console.print(msg)
-    sent = send_notification(msg)
-    if sent:
-        console.print("\n[green]Brief sent via ntfy.[/green]")
-
-
-@cli.command("test-notify")
-def test_notify():
-    """Send a test notification to verify ntfy is configured."""
-    sent = send_notification("Viraj agent is online and working!")
-    if sent:
-        console.print("[green]Test notification sent![/green]")
-    else:
-        console.print("[yellow]Not sent — set NTFY_TOPIC in your .env file.[/yellow]")

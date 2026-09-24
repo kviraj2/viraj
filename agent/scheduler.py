@@ -14,12 +14,12 @@ from .reminders import get_pending_reminders, mark_reminder_sent
 
 def _check_reminders():
     for reminder in get_pending_reminders():
-        send_notification(f"Reminder: {reminder['title']}")
+        send_notification(reminder["title"], title="Reminder")
         mark_reminder_sent(reminder["id"])
 
 
 def _send_morning_brief():
-    send_notification(generate_morning_brief())
+    send_notification(generate_morning_brief(), title="Morning Brief")
 
 
 def start_daemon():
