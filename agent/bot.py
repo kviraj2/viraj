@@ -87,4 +87,36 @@ def _respond(text: str) -> str:
             "  inbox — unreplied messages"
         )
 
-    return "Didn't understand that. Type 'help' for a list of commands."
+    # Fallback: Ollama with strict grounding — only data we provide
+    try:
+        from .ollama_ai import _chat
+        tasks = list_tasks("pending")
+        reminders = list_reminders()
+
+        task_lines = "\n".join(
+            f"- #{t['id']} [{t['priority']}] {t['title']}"
+            + (f" (due {t['due_date']})" if t["due_date"] else "")
+            for t in tasks[:15]
+        ) or "none"
+
+        reminder_lines = "\n".join(
+            f"- {r['fire_at']}: {r['title']}" for r in reminders[:10]
+        ) or "none"
+
+        system = f"""You are Viraj's personal assistant. Be concise (2-3 sentences max).
+
+IMPORTANT: You ONLY know what is listed below. Do NOT invent, guess, or mention \
+any meetings, events, calendar items, people, or facts not explicitly listed here. \
+If asked about something not in this list, say you don't have that information.
+
+Pending tasks:
+{task_lines}
+
+Upcoming reminders:
+{reminder_lines}
+
+You do NOT have access to email, calendar, contacts, or any other data."""
+
+        return _chat(system, original)
+    except RuntimeError as e:
+        return f"Didn't understand that. Type 'help' for commands.\n({e})"
