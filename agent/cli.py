@@ -6,7 +6,10 @@ from rich.table import Table
 
 from .ai import generate_morning_brief
 from .db import init_db
+from .messages import get_unreplied, send_imessage
 from .notify import send_notification
+from .ollama_ai import classify_spam, draft_reply
+from .outlook import auth as outlook_auth, get_upcoming_events
 from .reminders import add_reminder, delete_reminder, list_reminders
 from .scheduler import start_daemon
 from .tasks import add_task, complete_task, delete_task, list_tasks
@@ -156,6 +159,152 @@ def test_notify():
         console.print("[green]Test notification sent![/green]")
     else:
         console.print("[yellow]Not sent — set NTFY_TOPIC in your .env file.[/yellow]")
+
+
+# ── Inbox (iMessage) ──────────────────────────────────────────────────────────
+
+@cli.group()
+def inbox():
+    """Manage iMessage inbox."""
+
+
+@inbox.command("list")
+@click.option("--hours", "-h", default=48, show_default=True, help="Look back N hours")
+def inbox_list(hours):
+    """Show unreplied messages."""
+    try:
+        msgs = get_unreplied(since_hours=hours)
+    except FileNotFoundError as e:
+        console.print(f"[red]{e}[/red]")
+        return
+    if not msgs:
+        console.print("[dim]No unreplied messages.[/dim]")
+        return
+    table = Table(title=f"Unreplied messages (last {hours}h)")
+    table.add_column("From", style="cyan")
+    table.add_column("Message")
+    table.add_column("When", width=20)
+    for m in msgs:
+        from datetime import datetime
+        when = datetime.fromtimestamp(
+            (m["date"] / 1e9) + (datetime(2001, 1, 1) - datetime(1970, 1, 1)).total_seconds()
+        ).strftime("%Y-%m-%d %H:%M")
+        table.add_row(
+            m["display_name"] or m["sender"] or "?",
+            (m["text"] or "")[:80],
+            when,
+        )
+    console.print(table)
+
+
+@inbox.command("process")
+@click.option("--hours", "-h", default=48, show_default=True, help="Look back N hours")
+def inbox_process(hours):
+    """AI reviews unreplied messages: marks spam, drafts replies."""
+    try:
+        msgs = get_unreplied(since_hours=hours)
+    except (FileNotFoundError, RuntimeError) as e:
+        console.print(f"[red]{e}[/red]")
+        return
+    if not msgs:
+        console.print("[dim]No unreplied messages.[/dim]")
+        return
+
+    for m in msgs:
+        name = m["display_name"] or m["sender"] or "?"
+        text = m["text"] or ""
+        sender = m["sender"] or ""
+        console.rule(f"[cyan]{name}[/cyan]")
+        console.print(f"[dim]{text}[/dim]\n")
+
+        try:
+            spam = classify_spam(sender, text)
+        except RuntimeError as e:
+            console.print(f"[yellow]Ollama error: {e}[/yellow]")
+            continue
+
+        if spam:
+            console.print("[red]Classified as spam.[/red]")
+            if click.confirm("Skip (mark as ignored)?", default=True):
+                continue
+
+        try:
+            draft = draft_reply(name, text)
+        except RuntimeError as e:
+            console.print(f"[yellow]Could not draft reply: {e}[/yellow]")
+            continue
+
+        console.print(f"\n[bold]Draft reply:[/bold] {draft}\n")
+        choice = click.prompt("Action", type=click.Choice(["send", "edit", "skip"]), default="skip")
+
+        if choice == "skip":
+            continue
+        elif choice == "edit":
+            edited = click.edit(draft)
+            if edited:
+                draft = edited.strip()
+
+        if choice in ("send", "edit"):
+            if send_imessage(sender, draft):
+                console.print(f"[green]Sent.[/green]")
+            else:
+                console.print(f"[red]Failed to send — check Messages.app permissions.[/red]")
+
+
+# ── Calendar (Outlook) ────────────────────────────────────────────────────────
+
+@cli.group()
+def calendar():
+    """Outlook calendar."""
+
+
+@calendar.command("auth")
+def calendar_auth():
+    """Authenticate with Microsoft (run once)."""
+    from .config import MS_CLIENT_ID
+    if not MS_CLIENT_ID:
+        console.print(
+            "[yellow]MS_CLIENT_ID not set.[/yellow]\n\n"
+            "To set up Outlook access:\n"
+            "  1. Go to portal.azure.com → App registrations → New registration\n"
+            "  2. Name it 'bestie', set account type to 'Personal Microsoft accounts only'\n"
+            "  3. Under Authentication → Add platform → Mobile/desktop → enable https://login.microsoftonline.com/common/oauth2/nativeclient\n"
+            "  4. Copy the Application (client) ID and add to .env:\n"
+            "     MS_CLIENT_ID=<your-client-id>"
+        )
+        return
+    try:
+        outlook_auth()
+        console.print("[green]Authenticated successfully.[/green]")
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+
+
+@calendar.command("show")
+@click.option("--days", "-d", default=7, show_default=True, help="Days ahead to show")
+def calendar_show(days):
+    """Show upcoming Outlook calendar events."""
+    from .config import MS_CLIENT_ID
+    if not MS_CLIENT_ID:
+        console.print("[yellow]Run `bestie calendar auth` first to connect Outlook.[/yellow]")
+        return
+    try:
+        events = get_upcoming_events(days=days)
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        return
+    if not events:
+        console.print("[dim]No upcoming events.[/dim]")
+        return
+    table = Table(title=f"Next {days} days")
+    table.add_column("When", width=18)
+    table.add_column("Event")
+    table.add_column("Location")
+    for e in events:
+        when = e["start"].strftime("%a %b %d %H:%M") if e["start"] else "?"
+        loc = e["location"] or ("[blue]Online[/blue]" if e["is_online"] else "")
+        table.add_row(when, e["subject"], loc)
+    console.print(table)
 
 
 # ── Daemon ────────────────────────────────────────────────────────────────────
