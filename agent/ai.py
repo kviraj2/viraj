@@ -17,6 +17,11 @@ def _task_context() -> str:
 
 
 def ask_assistant(question: str) -> str:
+    if not ANTHROPIC_API_KEY:
+        return (
+            "ANTHROPIC_API_KEY is not set in your .env file. "
+            "Get a key at https://console.anthropic.com — or skip this feature and just use tasks/reminders."
+        )
     system = f"""You are a personal life assistant. Be concise and practical.
 
 Current task context:
