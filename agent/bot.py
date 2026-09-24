@@ -5,6 +5,7 @@ from .reminders import add_reminder, list_reminders
 from .tasks import add_task, complete_task, list_tasks
 
 
+
 def _respond(text: str) -> str:
     original = text.strip()
     lower = original.lower()
@@ -86,17 +87,4 @@ def _respond(text: str) -> str:
             "  inbox — unreplied messages"
         )
 
-    # Fallback: Ollama free-form with task context
-    try:
-        from .ollama_ai import _chat
-        tasks = list_tasks("pending")
-        task_ctx = "\n".join(
-            f"- [{t['priority']}] #{t['id']} {t['title']}" for t in tasks[:10]
-        ) or "none"
-        return _chat(
-            f"You are Viraj's personal assistant. Be concise (≤3 sentences). "
-            f"Current pending tasks:\n{task_ctx}",
-            original,
-        )
-    except RuntimeError as e:
-        return f"Didn't understand that. Type 'help' for commands.\n({e})"
+    return "Didn't understand that. Type 'help' for a list of commands."
