@@ -1,9 +1,56 @@
 import re
 
 from .ai import generate_morning_brief
+from .config import MS_CLIENT_ID
 from .reminders import add_reminder, list_reminders
 from .tasks import add_task, complete_task, list_tasks
 
+
+def _get_calendar_lines() -> str:
+    if not MS_CLIENT_ID:
+        return "none (Outlook not connected)"
+    try:
+        from .outlook import get_upcoming_events
+        events = get_upcoming_events(days=7)
+        if not events:
+            return "none"
+        return "\n".join(
+            f"- {e['start'].strftime('%a %b %d %H:%M') if e['start'] else '?'}: {e['subject']}"
+            + (" [online]" if e["is_online"] else f" {e['location']}" if e["location"] else "")
+            for e in events
+        )
+    except Exception:
+        return "unavailable"
+
+
+def _get_email_lines() -> str:
+    if not MS_CLIENT_ID:
+        return "none (Outlook not connected)"
+    try:
+        from .outlook import get_recent_emails
+        emails = get_recent_emails(hours=24, max_results=10)
+        if not emails:
+            return "none"
+        return "\n".join(
+            f"- From {e['from']}: {e['subject']} — {e['preview'][:80]}"
+            for e in emails
+        )
+    except Exception:
+        return "unavailable"
+
+
+def _get_imessage_lines() -> str:
+    try:
+        from .messages import get_unreplied
+        msgs = get_unreplied(since_hours=48)
+        if not msgs:
+            return "none"
+        return "\n".join(
+            f"- {m['display_name'] or m['sender'] or '?'}: {(m['text'] or '')[:80]}"
+            for m in msgs[:10]
+        )
+    except Exception:
+        return "unavailable"
 
 
 def _respond(text: str) -> str:
@@ -58,15 +105,50 @@ def _respond(text: str) -> str:
         r_id = add_reminder(title, fire_at)
         return f"Reminder set: {title} at {fire_at} (#{r_id})"
 
-    # inbox
-    if lower in ("inbox", "messages", "unreplied"):
-        from .messages import get_unreplied
+    # calendar
+    if lower in ("calendar", "events", "schedule", "what's on", "whats on"):
+        if not MS_CLIENT_ID:
+            return "Outlook not connected. Run `bestie calendar auth` on your Mac first."
         try:
+            from .outlook import get_upcoming_events
+            events = get_upcoming_events(days=7)
+        except Exception as e:
+            return f"Calendar error: {e}"
+        if not events:
+            return "No upcoming events in the next 7 days."
+        lines = ["Upcoming events:"]
+        for e in events:
+            when = e["start"].strftime("%a %b %d %H:%M") if e["start"] else "?"
+            loc = " [online]" if e["is_online"] else (f" · {e['location']}" if e["location"] else "")
+            lines.append(f"  {when} — {e['subject']}{loc}")
+        return "\n".join(lines)
+
+    # emails
+    if lower in ("emails", "email", "mail", "unread"):
+        if not MS_CLIENT_ID:
+            return "Outlook not connected. Run `bestie calendar auth` on your Mac first."
+        try:
+            from .outlook import get_recent_emails
+            emails = get_recent_emails(hours=24)
+        except Exception as e:
+            return f"Email error: {e}"
+        if not emails:
+            return "No unread emails in the last 24h."
+        lines = [f"Unread emails ({len(emails)}):"]
+        for e in emails:
+            when = e["received"].strftime("%H:%M") if e["received"] else "?"
+            lines.append(f"  {when} {e['from']}: {e['subject']}")
+        return "\n".join(lines)
+
+    # inbox (iMessage/SMS)
+    if lower in ("inbox", "messages", "imessage", "texts", "unreplied"):
+        try:
+            from .messages import get_unreplied
             msgs = get_unreplied(since_hours=48)
         except Exception as e:
             return f"Error reading inbox: {e}"
         if not msgs:
-            return "No unreplied messages in the last 48h."
+            return "No unreplied iMessages/SMS in the last 48h."
         lines = [f"Unreplied ({len(msgs)}):"]
         for msg in msgs[:5]:
             name = msg["display_name"] or msg["sender"] or "?"
@@ -79,15 +161,17 @@ def _respond(text: str) -> str:
         return (
             "Commands:\n"
             "  brief — morning briefing\n"
-            "  tasks — list pending tasks\n"
+            "  tasks — pending tasks\n"
             "  task: <title> — add a task\n"
             "  done <id> — complete a task\n"
-            "  reminders — list reminders\n"
+            "  reminders — upcoming reminders\n"
             "  remind: <title> at YYYY-MM-DD HH:MM\n"
-            "  inbox — unreplied messages"
+            "  calendar — Outlook events (next 7 days)\n"
+            "  emails — unread Outlook emails (last 24h)\n"
+            "  inbox — unreplied iMessages/SMS"
         )
 
-    # Fallback: Ollama with strict grounding — only data we provide
+    # Fallback: Ollama with full grounding — tasks, reminders, calendar, emails, iMessage
     try:
         from .ollama_ai import _chat
         tasks = list_tasks("pending")
@@ -103,10 +187,14 @@ def _respond(text: str) -> str:
             f"- {r['fire_at']}: {r['title']}" for r in reminders[:10]
         ) or "none"
 
+        calendar_lines = _get_calendar_lines()
+        email_lines = _get_email_lines()
+        imessage_lines = _get_imessage_lines()
+
         system = f"""You are Viraj's personal assistant. Be concise (2-3 sentences max).
 
 IMPORTANT: You ONLY know what is listed below. Do NOT invent, guess, or mention \
-any meetings, events, calendar items, people, or facts not explicitly listed here. \
+any facts, people, or details not explicitly listed here. \
 If asked about something not in this list, say you don't have that information.
 
 Pending tasks:
@@ -115,7 +203,14 @@ Pending tasks:
 Upcoming reminders:
 {reminder_lines}
 
-You do NOT have access to email, calendar, contacts, or any other data."""
+Outlook calendar (next 7 days):
+{calendar_lines}
+
+Unread emails (last 24h):
+{email_lines}
+
+Unreplied iMessages/SMS (last 48h):
+{imessage_lines}"""
 
         return _chat(system, original)
     except RuntimeError as e:

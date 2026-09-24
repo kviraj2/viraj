@@ -38,4 +38,14 @@ def generate_morning_brief() -> str:
         except Exception:
             pass
 
+        try:
+            from .outlook import get_recent_emails
+            emails = get_recent_emails(hours=24, max_results=5)
+            if emails:
+                lines.append(f"\n{len(emails)} unread email(s):")
+                for e in emails:
+                    lines.append(f"  - {e['from']}: {e['subject']}")
+        except Exception:
+            pass
+
     return "\n".join(lines)
