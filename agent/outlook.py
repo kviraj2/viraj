@@ -20,6 +20,7 @@ def _get_token() -> str:
         MS_CLIENT_ID,
         authority=f"https://login.microsoftonline.com/{MS_TENANT_ID}",
         token_cache=cache,
+        # personal Microsoft accounts need the consumers endpoint
     )
 
     accounts = app.get_accounts()
@@ -30,6 +31,8 @@ def _get_token() -> str:
             return result["access_token"]
 
     flow = app.initiate_device_flow(scopes=SCOPES)
+    if "error" in flow:
+        raise RuntimeError(f"Device flow error: {flow.get('error_description', flow)}")
     print(flow["message"])
     result = app.acquire_token_by_device_flow(flow)
 

@@ -1,6 +1,6 @@
 from .tasks import list_tasks, get_due_today
 from .reminders import list_reminders
-from .config import MS_CLIENT_ID
+from .config import GMAIL_APP_PASSWORD, GMAIL_EMAIL, MS_CLIENT_ID
 
 
 def generate_morning_brief() -> str:
@@ -43,6 +43,17 @@ def generate_morning_brief() -> str:
             emails = get_recent_emails(hours=24, max_results=5)
             if emails:
                 lines.append(f"\n{len(emails)} unread email(s):")
+                for e in emails:
+                    lines.append(f"  - {e['from']}: {e['subject']}")
+        except Exception:
+            pass
+
+    if GMAIL_EMAIL and GMAIL_APP_PASSWORD:
+        try:
+            from .gmail import get_unread_emails
+            emails = get_unread_emails(max_results=5)
+            if emails:
+                lines.append(f"\n{len(emails)} unread Gmail(s):")
                 for e in emails:
                     lines.append(f"  - {e['from']}: {e['subject']}")
         except Exception:

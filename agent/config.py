@@ -20,7 +20,11 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 
 # Microsoft / Outlook
 MS_CLIENT_ID = os.getenv("MS_CLIENT_ID")
-MS_TENANT_ID = os.getenv("MS_TENANT_ID", "common")
+MS_TENANT_ID = os.getenv("MS_TENANT_ID", "consumers")
+
+# Gmail (IMAP)
+GMAIL_EMAIL = os.getenv("GMAIL_EMAIL")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
 # Telegram bot
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")

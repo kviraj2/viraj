@@ -1,7 +1,7 @@
 import re
 
 from .ai import generate_morning_brief
-from .config import MS_CLIENT_ID
+from .config import GMAIL_EMAIL, GMAIL_APP_PASSWORD, MS_CLIENT_ID
 from .reminders import add_reminder, list_reminders
 from .tasks import add_task, complete_task, list_tasks
 
@@ -24,19 +24,22 @@ def _get_calendar_lines() -> str:
 
 
 def _get_email_lines() -> str:
-    if not MS_CLIENT_ID:
-        return "none (Outlook not connected)"
-    try:
-        from .outlook import get_recent_emails
-        emails = get_recent_emails(hours=24, max_results=10)
-        if not emails:
-            return "none"
-        return "\n".join(
-            f"- From {e['from']}: {e['subject']} — {e['preview'][:80]}"
-            for e in emails
-        )
-    except Exception:
-        return "unavailable"
+    lines = []
+    if MS_CLIENT_ID:
+        try:
+            from .outlook import get_recent_emails
+            for e in get_recent_emails(hours=24, max_results=5):
+                lines.append(f"- [Outlook] From {e['from']}: {e['subject']} — {e['preview'][:80]}")
+        except Exception:
+            pass
+    if GMAIL_EMAIL and GMAIL_APP_PASSWORD:
+        try:
+            from .gmail import get_unread_emails
+            for e in get_unread_emails(max_results=5):
+                lines.append(f"- [Gmail] From {e['from']}: {e['subject']} — {e['preview'][:80]}")
+        except Exception:
+            pass
+    return "\n".join(lines) if lines else "none"
 
 
 def _get_imessage_lines() -> str:
@@ -123,21 +126,32 @@ def _respond(text: str) -> str:
             lines.append(f"  {when} — {e['subject']}{loc}")
         return "\n".join(lines)
 
-    # emails
+    # emails (Outlook + Gmail combined)
     if lower in ("emails", "email", "mail", "unread"):
-        if not MS_CLIENT_ID:
-            return "Outlook not connected. Run `bestie calendar auth` on your Mac first."
-        try:
-            from .outlook import get_recent_emails
-            emails = get_recent_emails(hours=24)
-        except Exception as e:
-            return f"Email error: {e}"
-        if not emails:
-            return "No unread emails in the last 24h."
-        lines = [f"Unread emails ({len(emails)}):"]
-        for e in emails:
-            when = e["received"].strftime("%H:%M") if e["received"] else "?"
-            lines.append(f"  {when} {e['from']}: {e['subject']}")
+        all_emails = []
+        if MS_CLIENT_ID:
+            try:
+                from .outlook import get_recent_emails
+                for e in get_recent_emails(hours=24):
+                    all_emails.append(("[Outlook]", e))
+            except Exception as ex:
+                all_emails.append(("[Outlook]", {"error": str(ex)}))
+        if GMAIL_EMAIL and GMAIL_APP_PASSWORD:
+            try:
+                from .gmail import get_unread_emails
+                for e in get_unread_emails(max_results=10):
+                    all_emails.append(("[Gmail]", e))
+            except Exception as ex:
+                all_emails.append(("[Gmail]", {"error": str(ex)}))
+        if not all_emails:
+            return "No email accounts connected."
+        lines = [f"Unread emails ({len(all_emails)}):"]
+        for source, e in all_emails:
+            if "error" in e:
+                lines.append(f"  {source} error: {e['error']}")
+                continue
+            when = e["received"].strftime("%H:%M") if e.get("received") else "?"
+            lines.append(f"  {source} {when} {e['from']}: {e['subject']}")
         return "\n".join(lines)
 
     # inbox (iMessage/SMS)
